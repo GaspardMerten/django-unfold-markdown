@@ -1,6 +1,5 @@
 {% load i18n %}
 
-<div class="markdown-widget-wrapper max-w-4xl">
+<div class="markdown-widget-wrapper max-w-4xl"{% if image_upload_url %} data-image-upload-url="{{ image_upload_url }}"{% endif %}>
     <textarea name="{{ widget.name }}" id="markdown-{{ widget.name }}"{% if widget.value != None %}>{{ widget.value }}</textarea>{% else %}></textarea>{% endif %}
 </div>
-

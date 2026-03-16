@@ -1,6 +1,58 @@
 // Markdown Editor Configuration for Django Unfold
 // Uses EasyMDE with custom styling
 
+function getCSRFToken() {
+    const cookie = document.cookie.split('; ').find(c => c.startsWith('csrftoken='));
+    if (cookie) return cookie.split('=')[1];
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) return meta.getAttribute('content');
+    const input = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (input) return input.value;
+    return '';
+}
+
+function createImageUploadAction(uploadUrl) {
+    return function uploadImage(editor) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = function () {
+            const file = input.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const cm = editor.codemirror;
+            const pos = cm.getCursor();
+            cm.replaceRange('![Uploading...]()', pos);
+            const placeholderStart = { line: pos.line, ch: pos.ch };
+            const placeholderEnd = { line: pos.line, ch: pos.ch + '![Uploading...]()'.length };
+
+            fetch(uploadUrl, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCSRFToken() },
+                body: formData,
+            })
+                .then(function (response) {
+                    if (!response.ok) throw new Error('Upload failed: ' + response.status);
+                    return response.json();
+                })
+                .then(function (data) {
+                    const url = data.url;
+                    if (!url) throw new Error('No URL in response');
+                    const alt = file.name.replace(/\.[^.]+$/, '');
+                    cm.replaceRange('![' + alt + '](' + url + ')', placeholderStart, placeholderEnd);
+                })
+                .catch(function (err) {
+                    cm.replaceRange('', placeholderStart, placeholderEnd);
+                    alert('Image upload failed: ' + err.message);
+                });
+        };
+        input.click();
+    };
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const markdownTextareas = document.querySelectorAll('textarea[id^="markdown-"]');
 
@@ -8,6 +60,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (textarea.easymde) {
             return;
         }
+
+        const wrapper = textarea.closest('.markdown-widget-wrapper');
+        const uploadUrl = wrapper ? wrapper.dataset.imageUploadUrl : null;
+
+        const imageAction = uploadUrl
+            ? createImageUploadAction(uploadUrl)
+            : EasyMDE.drawImage;
+        const imageTitle = uploadUrl ? "Upload Image" : "Image";
 
         const easymde = new EasyMDE({
             element: textarea,
@@ -88,9 +148,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 {
                     name: "image",
-                    action: EasyMDE.drawImage,
+                    action: imageAction,
                     className: "unfold-markdown-button",
-                    title: "Image",
+                    title: imageTitle,
                 },
                 {
                     name: "table",
@@ -151,7 +211,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 'unordered-list': 'format_list_bulleted',
                 'ordered-list': 'format_list_numbered',
                 'link': 'link',
-                'image': 'image',
+                'image': uploadUrl ? 'upload' : 'image',
                 'table': 'table',
                 'horizontal-rule': 'horizontal_rule',
                 'preview': 'visibility',
@@ -216,7 +276,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }, { threshold: 0.1 });
 
-        const wrapper = textarea.closest('.markdown-widget-wrapper');
         if (wrapper) {
             visibilityObserver.observe(wrapper);
         }

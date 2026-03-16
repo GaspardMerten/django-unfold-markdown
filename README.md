@@ -22,6 +22,7 @@ Markdown editor widget for [Django Unfold](https://github.com/unfoldadmin/django
 - **Dark/light theme** integration with Unfold
 - **Material Symbols icons** matching Unfold design
 - **Toolbar**: bold, italic, strikethrough, headings, lists, links, images, tables, horizontal rules
+- **Image upload**: upload images directly from the editor toolbar
 - **No autosave** (saves on form submit)
 - **Responsive** design
 
@@ -69,7 +70,7 @@ from unfold_markdown.widgets import MarkdownWidget
 
 class ArticleForm(forms.ModelForm):
     content = forms.CharField(widget=MarkdownWidget())
-    
+
     class Meta:
         model = Article
         fields = '__all__'
@@ -77,6 +78,70 @@ class ArticleForm(forms.ModelForm):
 @admin.register(Article)
 class ArticleAdmin(ModelAdmin):
     form = ArticleForm
+```
+
+## Image Upload
+
+By default, the image toolbar button prompts for a URL. To enable direct image uploads, configure an upload endpoint.
+
+### Using the built-in upload view
+
+1. Add the URL to your project:
+
+```python
+# urls.py
+from django.urls import path, include
+
+urlpatterns = [
+    # ...
+    path("unfold-markdown/", include("unfold_markdown.urls")),
+]
+```
+
+2. Set the upload URL in settings:
+
+```python
+# settings.py
+UNFOLD_MARKDOWN = {
+    "image_upload_url": "/unfold-markdown/image-upload/",
+}
+```
+
+The built-in view:
+- Requires staff user authentication
+- Accepts `png`, `jpg`, `jpeg`, `gif`, `webp`, `svg`, `bmp`, `ico`, `avif`
+- Saves files using Django's default storage backend
+- Returns `{"url": "..."}` as JSON
+
+### Optional settings
+
+```python
+UNFOLD_MARKDOWN = {
+    "image_upload_url": "/unfold-markdown/image-upload/",
+    "image_upload_dir": "markdown-images",  # default: "markdown-images"
+    "image_max_size": 10 * 1024 * 1024,     # default: 10MB
+}
+```
+
+### Using a custom endpoint
+
+You can point to any endpoint that accepts a `POST` with a `file` field in `multipart/form-data` and returns JSON with a `url` key:
+
+```python
+UNFOLD_MARKDOWN = {
+    "image_upload_url": "/api/my-custom-upload/",
+}
+```
+
+### Per-widget override
+
+You can also set the upload URL per widget instance:
+
+```python
+class ArticleForm(forms.ModelForm):
+    content = forms.CharField(
+        widget=MarkdownWidget(upload_url="/api/my-upload/")
+    )
 ```
 
 ## Storage and Rendering
@@ -95,9 +160,9 @@ html = mistune.html(article.content)
 
 ## Requirements
 
-- Python ≥ 3.10
-- Django ≥ 4.2
-- django-unfold ≥ 0.70.0
+- Python >= 3.10
+- Django >= 4.2
+- django-unfold >= 0.70.0
 
 ## License
 
@@ -111,4 +176,3 @@ https://github.com/sergei-vasilev-dev/django-unfold-markdown
 
 - **EasyMDE**: [Ionaru/easy-markdown-editor](https://github.com/Ionaru/easy-markdown-editor) (MIT License)
 - **Django Unfold**: [unfoldadmin/django-unfold](https://github.com/unfoldadmin/django-unfold) (MIT License)
-
