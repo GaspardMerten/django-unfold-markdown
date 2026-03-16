@@ -1,6 +1,8 @@
 // Markdown Editor Configuration for Django Unfold
 // Uses EasyMDE with custom styling
 
+var MARKDOWN_SELECTOR = 'textarea[data-markdown-editor]';
+
 function getCSRFToken() {
     const cookie = document.cookie.split('; ').find(c => c.startsWith('csrftoken='));
     if (cookie) return cookie.split('=')[1];
@@ -195,8 +197,8 @@ function initMarkdownEditor(textarea) {
     });
 
     // Replace FA icons with Material Symbols
-    setTimeout(() => {
-        const iconMap = {
+    setTimeout(function() {
+        var iconMap = {
             'bold': 'format_bold',
             'italic': 'format_italic',
             'strikethrough': 'format_strikethrough',
@@ -217,13 +219,13 @@ function initMarkdownEditor(textarea) {
             'guide': 'help'
         };
 
-        const toolbar = textarea.parentElement.querySelector('.editor-toolbar');
+        var toolbar = textarea.parentElement.querySelector('.editor-toolbar');
         if (toolbar) {
-            Object.keys(iconMap).forEach(name => {
-                const button = toolbar.querySelector(`button.${name}`);
+            Object.keys(iconMap).forEach(function(name) {
+                var button = toolbar.querySelector('button.' + name);
                 if (button) {
                     button.innerHTML = '';
-                    const span = document.createElement('span');
+                    var span = document.createElement('span');
                     span.className = 'material-symbols-outlined';
                     span.textContent = iconMap[name];
                     button.appendChild(span);
@@ -235,18 +237,18 @@ function initMarkdownEditor(textarea) {
     textarea.easymde = easymde;
 
     // Force refresh CodeMirror to fix display issues
-    setTimeout(() => {
+    setTimeout(function() {
         if (easymde.codemirror) {
             easymde.codemirror.refresh();
         }
     }, 100);
 
     // Watch for theme changes
-    const themeObserver = new MutationObserver(function(mutations) {
+    var themeObserver = new MutationObserver(function(mutations) {
         mutations.forEach(function(mutation) {
             if (mutation.attributeName === 'class') {
-                const isDark = document.documentElement.classList.contains('dark');
-                const w = textarea.closest('.markdown-widget-wrapper');
+                var isDark = document.documentElement.classList.contains('dark');
+                var w = textarea.closest('.markdown-widget-wrapper');
                 if (w) {
                     if (isDark) {
                         w.classList.add('dark');
@@ -264,16 +266,16 @@ function initMarkdownEditor(textarea) {
     });
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    const markdownTextareas = document.querySelectorAll('textarea[id^="markdown-"]');
+function initAllMarkdownEditors() {
+    var markdownTextareas = document.querySelectorAll(MARKDOWN_SELECTOR);
 
     // Use IntersectionObserver to lazily initialize editors when they become visible.
     // This ensures editors in hidden tabs (e.g. django-modeltranslation tabbed interface)
     // are only initialized once their tab is activated and they have layout dimensions.
-    const observer = new IntersectionObserver(function(entries) {
+    var observer = new IntersectionObserver(function(entries) {
         entries.forEach(function(entry) {
             if (entry.isIntersecting) {
-                const textarea = entry.target;
+                var textarea = entry.target;
                 if (!textarea.easymde) {
                     initMarkdownEditor(textarea);
                 }
@@ -283,6 +285,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }, { threshold: 0.1 });
 
     markdownTextareas.forEach(function(textarea) {
+        if (textarea.easymde) return;
         // If the textarea is already visible, initialize immediately
         if (textarea.offsetParent !== null) {
             initMarkdownEditor(textarea);
@@ -291,14 +294,24 @@ document.addEventListener('DOMContentLoaded', function() {
         // Otherwise, wait until it becomes visible
         observer.observe(textarea);
     });
+}
 
-    // Also listen for tab clicks to refresh already-initialized editors
-    // that may have been resized or reflowed
+document.addEventListener('DOMContentLoaded', function() {
+    // Delay initialization to run after modeltranslation's tabbed_translation_fields.js
+    // has set up its jQuery UI tabs (it also runs on DOMContentLoaded/ready).
+    setTimeout(function() {
+        initAllMarkdownEditors();
+    }, 0);
+
+    // Listen for tab clicks to init lazy editors and refresh existing ones
     document.addEventListener('click', function(e) {
-        const tab = e.target.closest('[role="tab"], .tab-navigation button, .tabbed-form-tabs button, .mt-tab');
+        var tab = e.target.closest('[role="tab"], .ui-tabs-anchor, .tab-navigation button, .tabbed-form-tabs button');
         if (!tab) return;
         setTimeout(function() {
-            document.querySelectorAll('textarea[id^="markdown-"]').forEach(function(textarea) {
+            // Init any newly-visible editors
+            initAllMarkdownEditors();
+            // Refresh already-initialized editors
+            document.querySelectorAll(MARKDOWN_SELECTOR).forEach(function(textarea) {
                 if (textarea.easymde && textarea.easymde.codemirror) {
                     textarea.easymde.codemirror.refresh();
                 }
@@ -307,11 +320,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Refresh on window resize
-    let resizeTimeout;
+    var resizeTimeout;
     window.addEventListener('resize', function() {
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(function() {
-            document.querySelectorAll('textarea[id^="markdown-"]').forEach(function(textarea) {
+            document.querySelectorAll(MARKDOWN_SELECTOR).forEach(function(textarea) {
                 if (textarea.easymde && textarea.easymde.codemirror) {
                     textarea.easymde.codemirror.refresh();
                 }
