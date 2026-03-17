@@ -4,14 +4,13 @@
 var MARKDOWN_SELECTOR = 'textarea[data-markdown-editor]';
 
 function getCSRFToken() {
-    const cookie = document.cookie.split('; ').find(c => c.startsWith('csrftoken='));
-    if (cookie) return cookie.split('=')[1];
-    const meta = document.querySelector('meta[name="csrf-token"]');
-    if (meta) return meta.getAttribute('content');
     const input = document.querySelector('[name=csrfmiddlewaretoken]');
     if (input) return input.value;
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) return meta.getAttribute('content');
     return '';
 }
+
 
 function createImageUploadAction(uploadUrl) {
     return function uploadImage(editor) {
